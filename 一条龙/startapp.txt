@@ -1,0 +1,8 @@
+node ./bin/www & supervisor app.js
+
+直接启动项目 node ./bin/www
+supervisor启动： supervisor ./bin/www
+
+调试工具：node-inspector
+默认启动方法：node-debug ./bin/www
+更多高级方法：https://github.com/node-inspector/node-inspector   Advance

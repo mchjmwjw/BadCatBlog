@@ -1,0 +1,2 @@
+cd /cygdrive/e/MongoDB/
+./mongod --dbpath ./BadCatBlog 

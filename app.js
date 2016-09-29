@@ -7,6 +7,7 @@ var bodyParser = require('body-parser');
 
 var routes = require('./routes/index'); //加载访问主页的路由
 var settings = require('./settings');
+var flash = require('connect-flash'); //flash是在session中用于存储信息的特定区域
 var users = require('./routes/users');
 
 //会话信息存放需要的模块
@@ -19,6 +20,7 @@ var app = express(); //生成一个express实例的app
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs'); //设置模板引擎
 //_dirname为全局变量，存储当前正在执行的脚本所在目录
+app.use(flash());
 
 // uncomment after placing your favicon in /public, favicon图标
 app.use(favicon(__dirname + '/public/favicon.ico'));
@@ -29,10 +31,26 @@ app.use(cookieParser());      //加载解析cookie的中间件
 app.use(express.static(path.join(__dirname, 'public')));
 //设置public文件夹为存放静态文件的目录
 
+//设置cookie，将会话信息存入mongodb
+//可通过req.session获取当前用户的会话对象，获取用户的相关信息
+app.use(session({
+    secret: settings.cookieSecret,
+    key: settings.db,        //cookie name
+    cookie: {maxAge: 1000 * 60 * 60 * 24 * 30}, //30天
+    store: new MongoStore({
+        db: settings.db,
+        host: settings.host,
+        port: settings.port
+    }),
+    resave: false,
+    saveUninitialized: true
+}));
+
 //以下为 路由控制器
 //app.use('/', routes);
 routes(app);
 app.use('/users', users);
+
 
 //捕捉404错误，并转发到错误处理器
 // catch 404 and forward to error handler
@@ -67,20 +85,7 @@ app.use(function(err, req, res, next) {
   });
 });
 
-//设置cookie，将会话信息存入mongodb
-//可通过req.session获取当前用户的会话对象，获取用户的相关信息
-app.use(session({
-    secret: settings.cookieSecret,
-    key: settings.db,        //cookie name
-    cookie: {maxAge: 1000 * 60 * 60 * 24 * 30}, //30天
-    store: new MongoStore({
-        db: settings.db,
-        host: settings.host,
-        port: settings.port
-    }),
-    resave: false,
-    saveUninitialized: true
-}));
+
 
 //导出app实例供其他模块调用
 module.exports = app;
