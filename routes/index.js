@@ -44,6 +44,13 @@ function rou(app) {
                 req.flash("error", err);
                 return res.redirect('/reg'); //注册失败返回注册页
             }
+            //不存在，新增用户
+            newUser.save(function(err, user) {
+                if(err) {
+                    req.flash('error', err);
+                    return res.redirect('/reg');//失败返回注册页面
+                }
+            });
             req.session.user = newUser; //用户信息存入 session
             req.flash('success', '注册成功!');
             res.redirect('/'); //注册成功后返回主页
