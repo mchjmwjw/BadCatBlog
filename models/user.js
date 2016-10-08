@@ -63,7 +63,7 @@ User.get = function(name, callback) {
                     if(err) {
                         return callback(err);
                     }
-                    callback(null, user);//成功，反复查询的用户信息
+                    callback(null, user);//成功，返回查询的用户信息
                 }
             );
         });
