@@ -3,6 +3,7 @@ var User = require('../models/user.js');
 var Post = require('../models/post.js');
 var express = require('express');
 var router = express.Router();//生成一个路由实例
+var multer = require('multer');//实现文件上传功能
 
 //捕获访问主页的GET请求
 /* GET home page. */
@@ -22,6 +23,7 @@ function rou(app) {
         });
     });
 
+
     app.get('/reg', checkNotLogin);
     app.get('/reg', function(req, res) {
         res.render('reg', {
@@ -31,7 +33,6 @@ function rou(app) {
             error: req.flash('error').toString()
         });
     });
-
     app.post('/reg', checkNotLogin);
     app.post('/reg', function(req, res) {
         //res.send("你好");
@@ -76,6 +77,7 @@ function rou(app) {
         });
     });
 
+
     app.get('/login', checkNotLogin);
     app.get('/login', function(req, res) {
         res.render('login', {
@@ -85,7 +87,6 @@ function rou(app) {
             error: req.flash('error').toString()
         });
     });
-
     app.post('/login', checkNotLogin);
     app.post('/login', function(req, res) {
         //生成密码的md5值
@@ -109,6 +110,8 @@ function rou(app) {
         });
     });
 
+
+    //提交文章
     app.get('/post', checkLogin);
     app.get('/post', function(req, res) {
         res.render('post', {
@@ -118,7 +121,6 @@ function rou(app) {
             error: req.flash('error').toString()
         });
     });
-    //提交文章
     app.post('/post', checkLogin);
     app.post('/post', function(req, res) {
         var currentUser = req.session.user;
@@ -134,12 +136,131 @@ function rou(app) {
         });
     });
 
+
+    //注销
     app.get('/logout', checkLogin);
     app.get('/logout', function(req, res) {
         req.session.user = null; //去掉session中的用户信息
         req.flash('success', '注销成功！');
         res.redirect('/'); //跳转到主页
     });
+
+
+    var storage = multer.diskStorage({
+        destination: function(req, file, cb) {
+            cb(null, './public/images');
+        },
+        filename: function(req, file, cb) {
+            cb(null, file.originalname);
+        }
+    });
+    var upload = multer({
+        storage: storage
+    });
+    app.get('/upload', checkLogin);
+    app.get('/upload',function(req, res) {
+        res.render('upload',{
+            title: '文件上传',
+            user: req.session.user,
+            success: req.flash('success').toString(),
+            error: req.flash('error').toString()
+        });
+    });
+    app.post('/upload', checkLogin);
+    //array表示可同时上传多个文件，5表示最多上传5个文件
+    app.post('/upload', upload.array('field1', 5), function(req, res) {
+        req.flash('success', '文件上传成功！');
+        res.redirect('/upload');
+    });
+
+    //单独用户页面
+    app.get('/u/:name', function(req, res) {
+        //检查用户是否存在
+        User.get(req.params.name, function(err, user) {
+            if(!user) {
+                req.flash('error', '用户不存在！');
+                return res.redirect('/'); //用户不存在则跳转到主页
+            }
+            //查询并返回该用户的所有文章
+            Post.get(user.name, function(err, posts) {
+                if(err) {
+                    req.flash('error', err);
+                    return res.redirect('/');
+                }
+                res.render('user', {
+                    title: user.name,
+                    posts: posts,
+                    user: req.session.user,
+                    success: req.flash('success').toString(),
+                    error: req.flash('error').toString()
+                });
+            });
+        });
+    });
+
+    //单独文章页面
+    app.get('/u/:name/:day/:title', function(req, res) {
+        Post.getOne(req.params.name, req.params.day, req.params.title, function(err, post) {
+            if(err) {
+                req.flash('error', err);
+                return res.redirect('/');
+            }
+            res.render('article', {
+                title: req.params.title,
+                post: post,
+                user: req.session.user,
+                success: req.flash('success').toString(),
+                error: req.flash('error').toString()
+            });
+        });
+    });
+
+    //编辑文章页面
+    app.get('/edit/:name/:day/:title', checkLogin);
+    app.get('/edit/:name/:day/:title', function(req, res) {
+        var currentUser = req.session.user;
+        Post.edit(currentUser.name, req.params.day, req.params.title, function(err, post) {
+            if(err) {
+                req.flash('error', err);
+                return res.redirect('back');
+            }
+            res.render('edit', {
+                title: '编辑',
+                post: post,
+                user: req.session.user,
+                success: req.flash('success').toString(),
+                error: req.flash('error').toString()
+            });
+        });
+    });
+    app.post('/edit/:name/:day/:title', checkLogin);
+    app.post('/edit/:name/:day/:title', function(req, res) {
+        var currentUser = req.session.user;
+        Post.update(currentUser.name, req.params.day, req.params.title, req.body.post, function(err) {
+            var url = encodeURI('/u/' + req.params.name + '/' + req.params.day + '/' +req.params.title);
+            if(err) {
+                req.flash('error', err);
+                return res.redirect(url); //出错！返回文章页
+            }
+            req.flash('success', '修改成功！');
+            res.redirect(url); //成功，返回文章页
+        });
+    });
+
+    //删除文章
+    app.get('/remove/:name/:day/:title', checkLogin);
+    app.get('/remove/:name/:day/:title', function(req, res) {
+        var currentUser = req.session.user;
+        Post.remove(currentUser.name, req.params.day, req.params.title, function(err) {
+            if(err) {
+                req.flash('error', err);
+                return res.redirect('back');
+            }
+            req.flash('success', '删除成功！');
+            res.redirect('/');
+        });
+    });
+
     //检查是否登录
     function checkLogin(req, res, next) {
         if(!req.session.user) {
@@ -156,6 +277,7 @@ function rou(app) {
         }
         next();
     }
+
 };
 
  module.exports = rou; //导出这个路由
