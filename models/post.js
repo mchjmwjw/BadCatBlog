@@ -28,7 +28,8 @@ Post.prototype.save = function(callback) {
         name: this.name,
         time: time,
         title: this.title,
-        post: this.post
+        post: this.post,
+        comments: []
     };
 
     //打开数据库
@@ -57,7 +58,7 @@ Post.prototype.save = function(callback) {
     });
 };
 
-//读取文章及其相关信息
+//读取（指定用户的）所有文章及其相关信息
 Post.get = function(name, callback) {
     //打开数据库
     mongodb.open(function(err, db) {
@@ -93,6 +94,7 @@ Post.get = function(name, callback) {
     });
 }
 
+//读取一篇文章
 Post.getOne = function(name, day, title, callback) {
     //打开数据库
     mongodb.open(function(err, db) {
@@ -115,8 +117,14 @@ Post.getOne = function(name, day, title, callback) {
                 if(err) {
                     return callback(err);
                 }
-                //解析 markdown 为 html
-                doc.post = markdown.toHTML(doc.post);
+                //解析 markdown 为 html(文章和评论)
+                if(doc) {
+                    doc.post = markdown.toHTML(doc.post);
+                    doc.comments.forEach(function(comment) {
+                        comment.content = markdown.toHTML(comment.content);
+                    });
+                }
+
                 callback(null, doc); //返回查询的一篇文章
             });
         });

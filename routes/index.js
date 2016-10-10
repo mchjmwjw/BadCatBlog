@@ -1,6 +1,7 @@
 var crypto = require('crypto'); //用于生成散列值来加密密码
 var User = require('../models/user.js');
 var Post = require('../models/post.js');
+var Comment = require('../models/comment.js');
 var express = require('express');
 var router = express.Router();//生成一个路由实例
 var multer = require('multer');//实现文件上传功能
@@ -212,6 +213,27 @@ function rou(app) {
                 success: req.flash('success').toString(),
                 error: req.flash('error').toString()
             });
+        });
+    });
+    app.post('/u/:name/:day/:title', function(req, res) {
+        var date = new Date();
+        var time = date.getFullYear() + '-' + (date.getMonth() + 1) + '-' + date.getDate() + ' '
+            + date.getHours() + ':' + (date.getMinutes() < 10 ? '0' + date.getMinutes() : date.getMinutes());
+        var comment = {
+            name: req.body.name,
+            email: req.body.email,
+            website: req.body.website,
+            time: time,
+            content: req.body.content
+        };
+        var newComment = new Comment(req.params.name, req.params.day, req.params.title, comment);
+        newComment.save(function(err) {
+            if(err) {
+                req.flsh('error', error);
+                return res.redirect('back'); //失败也返回到文章页
+            }
+            req.flash('success','留言成功');
+            res.redirect('back'); //留言成功，返回到文章页
         });
     });
 
