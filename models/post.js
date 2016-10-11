@@ -1,10 +1,11 @@
 var mongodb = require('./db');
 var markdown = require('markdown').markdown;
 
-function Post(name, title, post) {
+function Post(name, title, post, tags) {
     this.name  = name;
     this.title = title;
     this.post  = post;
+    this.tags = tags;
 }
 
 module.exports = Post;
@@ -29,7 +30,8 @@ Post.prototype.save = function(callback) {
         time: time,
         title: this.title,
         post: this.post,
-        comments: []
+        comments: [],
+        tags: this.tags
     };
 
     //打开数据库
@@ -199,7 +201,7 @@ Post.edit = function(name, day, title, callback) {
     });
 };
 
-Post.update = function(name, day, title, post, callback) {
+Post.update = function(name, day, title, post, tags, callback) {
     mongodb.open(function(err, db) {
         if(err) {
             return callback(err);
@@ -214,7 +216,7 @@ Post.update = function(name, day, title, post, callback) {
                 "time.day": day,
                 "title": title
             }, {
-                $set: {post: post}
+                $set: {post: post, tags: tags}
             }, function(err) {
                 mongodb.close();
                 if(err) {
@@ -269,6 +271,61 @@ Post.getArchive = function(callback) {
                 'name': 1, //表示存在name属性（字段）
                 'time': 1,
                 'title': 1
+            }).sort({
+                time: -1
+            }).toArray(function(err, docs) {
+                mongodb.close();
+                if(err) {
+                    return callback(err);
+                }
+                callback(null, docs);
+            });
+        });
+    });
+};
+
+//获取所有标签
+Post.getTags = function(callback) {
+    mongodb.open(function(err, db) {
+        if(err) {
+            return callback(err);
+        }
+        db.collection('posts', function(err, collection) {
+            if(err) {
+                mongodb.close();
+                return callback(err);
+            }
+            //distinct 用来找出给定键的所有不同值
+            collection.distinct("tags", function(err, docs) {
+                mongodb.close();
+                if(err) {
+                    return callback(err);
+                }
+                callback(null, docs);
+            });
+        });
+    });
+};
+
+//通过标签获取相关文章
+Post.getTag = function(tag, callback) {
+    mongodb.open(function(err, db) {
+        if(err) {
+            return callback(err);
+        }
+        db.collection('posts', function(err, collection) {
+            if(err) {
+                mongodb.close();
+                return callback(err);
+            }
+            //查询所有tags数组内包含tag的文档
+            //并返回只含有name、time、title组成的数据
+            collection.find({
+                "tags": tag
+            }, {
+                "name": 1,
+                "time": 1,
+                "title": 1
             }).sort({
                 time: -1
             }).toArray(function(err, docs) {
