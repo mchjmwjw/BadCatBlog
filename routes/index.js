@@ -10,7 +10,10 @@ var multer = require('multer');//实现文件上传功能
 /* GET home page. */
 function rou(app) {
     app.get('/', function(req, res) {
-        Post.get(null, function(err, posts) {
+        //判断是否是第一页，并把请求的页数转换成number类型
+        var page = parseInt(req.query.p) || 1;  // ?p=2
+        var num = 1; //每页显示数量
+        Post.getPaging(null, page, num, function(err, posts, total) {
             if(err) {
                 posts = [];
             }
@@ -19,7 +22,10 @@ function rou(app) {
                 user: req.session.user,
                 posts: posts,
                 success: req.flash('success').toString(),
-                error: req.flash('error').toString()
+                error: req.flash('error').toString(),
+                page: page,
+                isFirstPage: (page - 1) == 0,
+                isLastPage: ((page - 1) * num + posts.length) == total
             });
         });
     });
@@ -146,6 +152,22 @@ function rou(app) {
         res.redirect('/'); //跳转到主页
     });
 
+    //存档
+    app.get('/archive',function(req, res) {
+        Post.getArchive(function(err, posts) {
+            if(err) {
+                req.flash('error', err);
+                return res.redirect('/');
+            }
+            res.render('archive', {
+                title: '存档',
+                posts: posts,
+                user: req.session.user,
+                success: req.flash('success').toString(),
+                error: req.flash('error').toString()
+            });
+        });
+    });
 
     var storage = multer.diskStorage({
         destination: function(req, file, cb) {
@@ -182,8 +204,10 @@ function rou(app) {
                 req.flash('error', '用户不存在！');
                 return res.redirect('/'); //用户不存在则跳转到主页
             }
+            var page = parseInt(req.query.p) || 1;
+            var num = 1;
             //查询并返回该用户的所有文章
-            Post.get(user.name, function(err, posts) {
+            Post.getPaging(user.name, page, num, function(err, posts, total) {
                 if(err) {
                     req.flash('error', err);
                     return res.redirect('/');
@@ -193,7 +217,10 @@ function rou(app) {
                     posts: posts,
                     user: req.session.user,
                     success: req.flash('success').toString(),
-                    error: req.flash('error').toString()
+                    error: req.flash('error').toString(),
+                    page: page,
+                    isFirstPage: (page - 1) * num == 0,
+                    isLastPage: ((page - 1) * num + posts.length) == total
                 });
             });
         });

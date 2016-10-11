@@ -94,6 +94,46 @@ Post.get = function(name, callback) {
     });
 }
 
+//在Post.get基础上分页获取文章
+Post.getPaging = function(name, page, num, callback) {
+    mongodb.open(function(err, db) {
+        if(err) {
+            return callback(err);
+        }
+        //读取posts集合
+        db.collection('posts', function(err, collection) {
+            if(err) {
+                mongodb.close();
+                return callback(err);
+            }
+            var query = {};
+            if(name) {
+                query.name = name;
+            }
+            //使用count返回特定查询的文档数 total
+            collection.count(query, function(err, total) {
+                //根据query对象查询，并跳出前(page-1)*num个结果，返回之后的结果
+                collection.find(query, {
+                    skip: (page - 1) * num,
+                    limit: num
+                }).sort({
+                    time: -1 //时间逆序(后->前)
+                }).toArray(function(err, docs) {
+                    mongodb.close();
+                    if(err) {
+                        return callback(err);
+                    }
+                    //解析markdown为html
+                    docs.forEach(function (doc) {
+                        doc.post = markdown.toHTML(doc.post);
+                    });
+                    callback(null, docs, total);
+                })
+            });
+        });
+    });
+}
+
 //读取一篇文章
 Post.getOne = function(name, day, title, callback) {
     //打开数据库
@@ -209,6 +249,34 @@ Post.remove = function(name, day, title, calllback) {
                     return calllback(err);
                 }
                 calllback(null);
+            });
+        });
+    });
+};
+
+Post.getArchive = function(callback) {
+    mongodb.open(function(err, db) {
+        if(err) {
+            return callback(err);
+        }
+        db.collection('posts', function(err, collection) {
+            if(err) {
+                mongodb.close();
+                return callback(err);
+            }
+            //返回包含name、time、title属性的文档组成的存档数组
+            collection.find({}, {
+                'name': 1, //表示存在name属性（字段）
+                'time': 1,
+                'title': 1
+            }).sort({
+                time: -1
+            }).toArray(function(err, docs) {
+                mongodb.close();
+                if(err) {
+                    return callback(err);
+                }
+                callback(null, docs);
             });
         });
     });
