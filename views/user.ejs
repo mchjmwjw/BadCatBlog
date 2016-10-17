@@ -2,6 +2,7 @@
 <% posts.forEach(function(post, index) { %>
     <p>
         <h2><a href="/u/<%= post.name %>/<%= post.time.day %>/<%= post.title %>">
+        <a href="/u/<%= post.name %>"><img src="<%= post.head %>" class="r_head" /></a>
         <%= post.title %></a></h2>
         <p class="info">
             作者：<a href="/u/<%= post.name %>"><%= post.name %></a>
@@ -15,6 +16,9 @@
         </p>
         <p>
             <%- post.post %>
+        </p>
+        <p class="info">
+            阅读: <%= post.pv %> | 评论: <%= post.comments.length %>
         </p>
     </p>
     <hr />

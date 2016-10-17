@@ -1,11 +1,12 @@
 var mongodb = require('./db');
 var markdown = require('markdown').markdown;
 
-function Post(name, title, post, tags) {
+function Post(name, head, title, post, tags) {
     this.name  = name;
+    this.head  = head;
     this.title = title;
     this.post  = post;
-    this.tags = tags;
+    this.tags  = tags;
 }
 
 module.exports = Post;
@@ -27,11 +28,14 @@ Post.prototype.save = function(callback) {
     //要存入数据库的文档
     var post = {
         name: this.name,
+        head: this.head,
         time: time,
         title: this.title,
         post: this.post,
         comments: [],
-        tags: this.tags
+        tags: this.tags,
+        pv: 0,
+        reprint_info: {}
     };
 
     //打开数据库
@@ -155,12 +159,24 @@ Post.getOne = function(name, day, title, callback) {
                 "time.day": day,
                 "title": title
             }, function(err, doc) {
-                mongodb.close();
                 if(err) {
+                    mongodb.close();
                     return callback(err);
                 }
                 //解析 markdown 为 html(文章和评论)
                 if(doc) {
+                    collection.update({
+                        "name": name,
+                        "time.day": day,
+                        "title": title
+                    }, {
+                        $inc: {"pv": 1}
+                    }, function(err) {
+                        mongodb.close();
+                        if(err) {
+                            return callback(err);
+                        }
+                    });
                     doc.post = markdown.toHTML(doc.post);
                     doc.comments.forEach(function(comment) {
                         comment.content = markdown.toHTML(comment.content);
@@ -338,3 +354,69 @@ Post.getTag = function(tag, callback) {
         });
     });
 };
+
+// Post.search = function(keyword, callback) {
+//     mongodb.open(function(err, db) {
+//         if(err) {
+//             return callback(err);
+//         }
+//         db.collection('posts', function(err, collection) {
+//             if(err) {
+//                 mongo.close();
+//                 return callback(err);
+//             }
+//             var pattern = new RegExp(keyword, 'i'); //大小写不敏感的匹配
+//             collection.find({
+//                 'title': pattern
+//             }, {
+//                 'name': 1,
+//                 'time': 1,
+//                 'title': 1
+//             }).sort({
+//                 time: -1
+//             }).toArray(function(err, docs) {
+//                 mongodb.close();
+//                 if(err) {
+//                     return callback(err);
+//                 }
+//                 callback(null, docs);
+//             });
+//         });
+//     });
+// };
+// //转载文章
+// Post.reprint = funciton(reprint_from, reprint_to, callback) {
+//     mongodb.open(function(err, db) {
+//         if(err) {
+//             return callback(err);
+//         }
+//         db.collection('posts', fucntion(err, collection) {
+//             if(err) {
+//                 mongodb.close();
+//                 return callback(err);
+//             }
+//             //找到被转载的文章的原文档
+//             collection.findOne({
+//                 "name": reprint_from.name,
+//                 "time.day": reprint_from.day,
+//                 "title": reprint_from.title
+//             }, function(err, doc) {
+//                 if(err) {
+//                     mongodb.close;
+//                     return callback(err);
+//                 }
+//                 var date = new Date();
+//                 var time = {
+//                     date:   date,
+//                     year:   date.getFullYear(),
+//                     month:  date.getFullYear() + "-" + (date.getMonth() + 1),
+//                     day:    date.getFullYear() + "-" + (date.getMonth() + 1) + '-' + date.getDate(),
+//                     minute: date.getFullYear() + '-' + (date.getMonth() + 1) + '-' + date.getDate() + ' '
+//                         + date.getHours() + ':' + (date.getMinutes() < 10 ? '0' + date.getMinutes() : date.getMinutes())
+//                 };
+//                 //删除原来的_id
+//
+//             });
+//         });
+//     });
+// };

@@ -12,7 +12,7 @@ function rou(app) {
     app.get('/', function(req, res) {
         //判断是否是第一页，并把请求的页数转换成number类型
         var page = parseInt(req.query.p) || 1;  // ?p=2
-        var num = 1; //每页显示数量
+        var num = 3; //每页显示数量
         Post.getPaging(null, page, num, function(err, posts, total) {
             if(err) {
                 posts = [];
@@ -77,8 +77,9 @@ function rou(app) {
                     req.flash('error', err);
                     return res.redirect('/reg');//失败返回注册页面
                 }
+                //var bb = req;
             });
-            req.session.user = newUser; //用户信息存入 session
+            req.session.user = user; //用户信息存入 session
             req.flash('success', '注册成功!');
             res.redirect('/'); //注册成功后返回主页
         });
@@ -132,7 +133,7 @@ function rou(app) {
     app.post('/post', function(req, res) {
         var currentUser = req.session.user;
         var tags = [req.body.tag1, req.body.tag2, req.body.tag3];
-        var post = new Post(currentUser.name, req.body.title,
+        var post = new Post(currentUser.name, currentUser.head, req.body.title,
                             req.body.post, tags);
         post.save(function(err) {
             if(err) {
@@ -201,6 +202,33 @@ function rou(app) {
                 success: req.flash('success').toString(),
                 error: req.flash('error').toString()
             });
+        });
+    });
+
+    //搜索
+    app.get('/search', function(req, res) {
+        Post.search(req.query.keyword, function(err, posts) {
+            if(err) {
+                req.flash('error', err);
+                return res.redirect('/');
+            }
+            res.render('search', {
+                title: 'SEARCH:' + req.query.keyword,
+                posts: posts,
+                user: req.session.user,
+                success: req.flash('success').toString(),
+                error: req.flash('error').toString()
+            });
+        });
+    });
+
+    //友情链接
+    app.get('/links', function(req, res) {
+        res.render('links', {
+            title: '友情链接',
+            user: req.session.user,
+            success: req.flash('success').toString(),
+            error: req.flash('error').toString()
         });
     });
 
@@ -280,12 +308,17 @@ function rou(app) {
             });
         });
     });
+    //评论
     app.post('/u/:name/:day/:title', function(req, res) {
         var date = new Date();
         var time = date.getFullYear() + '-' + (date.getMonth() + 1) + '-' + date.getDate() + ' '
             + date.getHours() + ':' + (date.getMinutes() < 10 ? '0' + date.getMinutes() : date.getMinutes());
+        var md5 = crypto.createHash('md5');
+        var email_md5 = md5.update(req.body.email.toLowerCase()).digest('hex');
+        var head = "http://www.gravatar.com/avatar/" + email_md5 + "?s=48";
         var comment = {
             name: req.body.name,
+            head: head,
             email: req.body.email,
             website: req.body.website,
             time: time,
@@ -347,6 +380,11 @@ function rou(app) {
             req.flash('success', '删除成功！');
             res.redirect('/');
         });
+    });
+
+    //路径错误，跳转404
+    app.use(function(req, res) {
+        res.render('404');
     });
 
     //检查是否登录
