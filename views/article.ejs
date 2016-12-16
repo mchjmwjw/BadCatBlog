@@ -6,6 +6,29 @@
             <a class="edit" href="/remove/<%= post.name %>/<%= post.time.day %>/<%= post.title %>">删除</a>
         </span>
     <% } %>
+    <% var flag = 1 %>
+    <% /* 若非游客且转发的不是自己的文章 */ %>
+    <% if(user && (user.name != post.name)) { %>
+        <% /* 若自己转载自己写的文章（包括同一篇，B转A，A再转B的情况） 不得转载*/ %>
+        <% if((post.reprint_info.reprint_from != undefined) &&
+                (user.name == post.reprint_info.reprint_from.name)) { %>
+            <% flag = 0 %>
+        <% } %>
+        <% /* 若该文章不是第一次被转载 */ %>
+        <% if((post.reprint_info.reprint_to != undefined)) { %>
+            <% post.reprint_info.reprint_to.forEach(function(reprint_to, index) { %>
+                <% /* 过去已经转载过该文章 */ %>
+                <% if(user.name == reprint_to.name) { %>
+                    <% flag = 0 %>
+                <% } %>
+            <% }) %>
+        <% } %>
+    <% } else { %>
+        <% flag = 0 %>
+    <% } %>
+    <% if (flag) { %>
+        <span><a class="edit" href="/reprint/<%= post.name %>/<%= post.time.day %>/<%= post.title %>">转载</a></span>
+    <% } %>
 </p>
 <p class="info">
     作者：<a href="/u/<%= post.name %>"><%= post.name %></a> |
@@ -15,7 +38,11 @@
         <% if (tag) { %>
             <a class="tag" href="/tags/<%= tag %>"><%= tag %></a>
         <% } %>
-     <% }) %>
+    <% }) %>
+    <% if(post.reprint_info.reprint_from) { %>
+        <br />
+        <a href="/u/<%= post.reprint_info.reprint_from.name %>/<%= post.reprint_info.reprint_from.day %>/<%= post.reprint_info.reprint_from.title %>">原文链接</a>
+    <% } %>
 </p>
 <p><%- post.post %></p>
 <p class="info">

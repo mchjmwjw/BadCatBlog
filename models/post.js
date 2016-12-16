@@ -254,11 +254,48 @@ Post.remove = function(name, day, title, calllback) {
                 mongodb.close();
                 return callback(err);
             }
+            //查询要删除的文章
+            collection.findOne({
+                name: name,
+                'time.day': day,
+                title: title
+            }, function(err, doc) {
+                if(err) {
+                    mongodb.close();
+                    return callback(err);
+                }
+                //该文章是转载来的
+                var reprint_from = "";
+                if(doc.reprint_info.reprint_from) {
+                    reprint_from = doc.reprint_info.reprint_from;
+                }
+                if(reprint_from != '') {
+                    //更新原文章所在文档的 转出记录--reprint_to, 把转出记录中的对应数据删掉
+                    collection.update({
+                        name: reprint_from.name,
+                        'time.day': reprint_from.day,
+                        title: reprint_from.title
+                    }, {
+                        $pull: {
+                            'reprint_info.reprint_to': {
+                                name: name,
+                                day: day,
+                                title: title
+                            }
+                        }
+                    }, function(err) {
+                        if(err) {
+                            mongodb.close();
+                            return calllback(err);
+                        }
+                    });
+                }
+            });
             //根据用户名、日期和标题查找并删除一篇文章
             collection.remove({
-                'name': name,
+                name: name,
                 'time.day': day,
-                'title': title
+                title: title
             }, {
                 w: 1
             }, function(err) {
@@ -355,68 +392,107 @@ Post.getTag = function(tag, callback) {
     });
 };
 
-// Post.search = function(keyword, callback) {
-//     mongodb.open(function(err, db) {
-//         if(err) {
-//             return callback(err);
-//         }
-//         db.collection('posts', function(err, collection) {
-//             if(err) {
-//                 mongo.close();
-//                 return callback(err);
-//             }
-//             var pattern = new RegExp(keyword, 'i'); //大小写不敏感的匹配
-//             collection.find({
-//                 'title': pattern
-//             }, {
-//                 'name': 1,
-//                 'time': 1,
-//                 'title': 1
-//             }).sort({
-//                 time: -1
-//             }).toArray(function(err, docs) {
-//                 mongodb.close();
-//                 if(err) {
-//                     return callback(err);
-//                 }
-//                 callback(null, docs);
-//             });
-//         });
-//     });
-// };
-// //转载文章
-// Post.reprint = funciton(reprint_from, reprint_to, callback) {
-//     mongodb.open(function(err, db) {
-//         if(err) {
-//             return callback(err);
-//         }
-//         db.collection('posts', fucntion(err, collection) {
-//             if(err) {
-//                 mongodb.close();
-//                 return callback(err);
-//             }
-//             //找到被转载的文章的原文档
-//             collection.findOne({
-//                 "name": reprint_from.name,
-//                 "time.day": reprint_from.day,
-//                 "title": reprint_from.title
-//             }, function(err, doc) {
-//                 if(err) {
-//                     mongodb.close;
-//                     return callback(err);
-//                 }
-//                 var date = new Date();
-//                 var time = {
-//                     date:   date,
-//                     year:   date.getFullYear(),
-//                     month:  date.getFullYear() + "-" + (date.getMonth() + 1),
-//                     day:    date.getFullYear() + "-" + (date.getMonth() + 1) + '-' + date.getDate(),
-//                     minute: date.getFullYear() + '-' + (date.getMonth() + 1) + '-' + date.getDate() + ' '
-//                         + date.getHours() + ':' + (date.getMinutes() < 10 ? '0' + date.getMinutes() : date.getMinutes())
-//                 };
-//                 //删除原来的_id
-//
-//             });
-//         });
-//     });
-// };
+Post.search = function(keyword, callback) {
+    mongodb.open(function(err, db) {
+        if(err) {
+            return callback(err);
+        }
+        db.collection('posts', function(err, collection) {
+            if(err) {
+                mongodb.close();
+                return callback(err);
+            }
+            var pattern = new RegExp(keyword, 'i'); //大小写不敏感的匹配
+            collection.find({
+                title: pattern
+            }, {
+                name: 1,
+                time: 1,
+                title: 1
+            }).sort({
+                time: -1
+            }).toArray(function(err, docs) {
+                mongodb.close();
+                if(err) {
+                    return callback(err);
+                }
+                callback(null, docs);
+            });
+        });
+    });
+};
+
+Post.reprint = function(reprint_from, reprint_to, callback) {
+    mongodb.open(function(err, db) {
+        if(err) {
+            return callback(err);
+        }
+        db.collection('posts', function(err, collection) {
+            if(err) {
+                mongodb.close();
+                return callback(err);
+            }
+            collection.findOne({
+                name: reprint_from.name,
+                'time.day': reprint_from.day,
+                title: reprint_from.title
+            }, function(err, doc) {
+                if (err) {
+                    mongodb.close();
+                    return callback(err);
+                }
+                var date = new Date();
+                var time = {
+                    date: date,
+                    year: date.getFullYear(),
+                    month: date.getFullYear() + "-" + (date.getMonth() + 1),
+                    day: date.getFullYear() + "-" + (date.getMonth() + 1) + '-' + date.getDate(),
+                    minute: date.getFullYear() + '-' + (date.getMonth() + 1) + '-' + date.getDate() + ' ' +
+                        date.getHours() + ':' + (date.getMinutes() < 10 ? '0' + date.getMinutes() : date.getMinutes())
+                };
+                //删除原来的_id
+                delete doc._id;
+                //将转载的文章添加到自己的文章中
+                doc.name = reprint_to.name;
+                doc.head = reprint_to.head;
+                doc.time = time;
+                doc.title = (doc.title.search(/[转载]/) > -1) ? doc.title : "[转载]" + doc.title;
+                doc.comments = [];
+                doc.reprint_info = {
+                    reprint_from: reprint_from
+                };
+                doc.pv = 0;
+                //更新被转载的原文档的转载信息
+                collection.update({
+                    name: reprint_from.name,
+                    'time.day': reprint_from.day,
+                    title: reprint_from.title
+                }, {
+                    $push: {
+                        'reprint_info.reprint_to': {
+                            name: doc.name,
+                            day: time.day,
+                            title: doc.title
+                        }
+                    }
+                }, function(err) {
+                    if (err) {
+                        mongodb.close();
+                        return callback(err);
+                    }
+                });
+
+                //将转载后生成的副本存入数据库中，并返回存储后的文档
+                collection.insert(doc, {
+                    safe: true
+                }, function(err, post) {
+                    mongodb.close();
+                    if (err) {
+                        return callback(err);
+                    }
+                    callback(err, post.ops[0]);
+                });
+            });
+        });
+    });
+};

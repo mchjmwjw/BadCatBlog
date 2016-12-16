@@ -77,11 +77,10 @@ function rou(app) {
                     req.flash('error', err);
                     return res.redirect('/reg');//失败返回注册页面
                 }
-                //var bb = req;
+                req.session.user = user;
+                req.flash('success', '注册成功!');
+                res.redirect('/'); //注册成功后返回主页
             });
-            req.session.user = user; //用户信息存入 session
-            req.flash('success', '注册成功!');
-            res.redirect('/'); //注册成功后返回主页
         });
     });
 
@@ -379,6 +378,38 @@ function rou(app) {
             }
             req.flash('success', '删除成功！');
             res.redirect('/');
+        });
+    });
+
+    //转载文章
+    app.get('/reprint/:name/:day/:title', checkLogin);
+    app.get('/reprint/:name/:day/:title', function(req, res) {
+        //修改被转载文章的转载信息
+        Post.edit(req.params.name, req.params.day, req.params.title, function(err, post) {
+            if(err) {
+                req.flash("error", err);
+                return res.redirect('back');
+            }
+            var currentUser = req.session.user;
+            var reprint_from = {
+                name : post.name,
+                day  : post.time.day,
+                title: post.title
+            };
+            var reprint_to = {
+                name: currentUser.name,
+                head: currentUser.head
+            };
+            Post.reprint(reprint_from, reprint_to, function(err, post) {
+                if(err) {
+                    req.flash("error", err);
+                    return res.redirect('back');
+                }
+                req.flash('success', "转载成功！");
+                var url = encodeURI('/u/' + post.name + '/' + post.time.day + '/' + post.title);
+                //跳转到转载后的文章页面
+                res.redirect(url);
+            });
         });
     });
 
