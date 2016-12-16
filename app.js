@@ -14,7 +14,12 @@ var users    = require('./routes/users');
 var session    = require('express-session');
 var MongoStore = require('connect-mongo')(session);
 
+var fs = require('fs');
+var accessLog = fs.createWriteStream('access.log', {flags: 'a'});
+var errorLog = fs.createWriteStream('error.log', {flags: 'a'});
 var app = express(); //生成一个express实例的app
+
+require('events').EventEmitter.prototype._maxListeners = 100;
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
@@ -24,11 +29,16 @@ app.use(flash());
 
 // uncomment after placing your favicon in /public, favicon图标
 app.use(favicon(__dirname + '/public/favicon.ico'));
-app.use(logger('dev'));                              //加载日志中间件
+app.use(logger('dev', {stream: accessLog}));                            //加载日志中间件
 app.use(bodyParser.json());                          //加载解析json的中间件
 app.use(bodyParser.urlencoded({ extended: false })); //加载解析urlencode请求体的中间件
 app.use(cookieParser());                             //加载解析cookie的中间件
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(function(err, req, res, next) {
+    var meta = '[' + new Date() + ']' +req.url +'\n';
+    errorLog.write(meta, err.stack + '\n');
+    next();
+});
 //设置public文件夹为存放静态文件的目录
 
 //设置cookie，将会话信息存入mongodb
@@ -85,7 +95,11 @@ app.use(function(err, req, res, next) {
   });
 });
 
-
+const port = process.env.PORT || config.port;
 
 //导出app实例供其他模块调用
-module.exports = app;
+if(module.parent) {
+    module.exports = app;
+} else {
+    console.log(`${pkg.name} listening on port ${port}`);
+}
