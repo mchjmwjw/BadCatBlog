@@ -11,6 +11,8 @@ var flash    = require('connect-flash');        //flash是在session中用于存
 var users    = require('./routes/users');
 
 //会话信息存放需要的模块
+var mongoose = require('mongoose');
+var uri = "mongodb://heroku_m570lp6m:g8835um42r6bmnvgbdr495ms75@ds133348.mlab.com:33348/heroku_m570lp6m";
 var session    = require('express-session');
 var MongoStore = require('connect-mongo')(session);
 
@@ -43,15 +45,17 @@ app.use(function(err, req, res, next) {
 
 //设置cookie，将会话信息存入mongodb
 //可通过req.session获取当前用户的会话对象，获取用户的相关信息
+mongoose.connect(uri);
 app.use(session({
     secret: settings.cookieSecret,
     key: settings.db,        //cookie name
     cookie: {maxAge: 1000 * 60 * 60 * 24 * 30}, //30天
-    store: new MongoStore({
+    store: new MongoStore({ mongooseConnection: mongoose.connection }),
+    /*store: new MongoStore({
         db: settings.db,
         host: settings.host,
         port: settings.port
-    }),
+    }),*/
     resave: false,
     saveUninitialized: true
 }));
@@ -95,7 +99,7 @@ app.use(function(err, req, res, next) {
   });
 });
 
-const port = process.env.PORT || config.port;
+const port = process.env.PORT;
 
 //导出app实例供其他模块调用
 if(module.parent) {
