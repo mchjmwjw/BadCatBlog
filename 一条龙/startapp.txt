@@ -6,3 +6,11 @@ supervisor启动： supervisor ./bin/www
 调试工具：node-inspector
 默认启动方法：node-debug ./bin/www
 更多高级方法：https://github.com/node-inspector/node-inspector   Advance
+
+cd /cygdrive/g/Code/BadCatBlog
+
+mongodb://heroku_m570lp6m:g8835um42r6bmnvgbdr495ms75@ds133348.mlab.com:33348/heroku_m570lp6m
+mongodb://dbuser:dbpass@host:port/dbname
+mongodb://dbuser:dbpass@host1:port1,host2:port2/dbname
+
+node-debug ./bin/www --web--host https://badcatblog.herokuapp.com/ -p 8080

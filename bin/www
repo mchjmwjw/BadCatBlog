@@ -13,7 +13,7 @@ var http = require('http');
  */
 
 //var port = normalizePort(process.env.PORT || '3100'); //设置端口号
-const port = process.env.PORT;
+const port = process.env.PORT || '3100';
 app.set('port', port);
 
 /**
@@ -59,9 +59,7 @@ function onError(error) {
     throw error;
   }
 
-  var bind = typeof port === 'string'
-    ? 'Pipe ' + port
-    : 'Port ' + port;
+  var bind = typeof port === 'string' ? 'Pipe ' + port : 'Port ' + port;
 
   // handle specific listen errors with friendly messages
   switch (error.code) {

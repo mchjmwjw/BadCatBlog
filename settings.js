@@ -6,6 +6,9 @@
 
 module.exports = {
   cookieSecret: 'myblog',
+  // db: 'blog',
+  // host: 'localhost',
+  // port: 27017
   db: 'heroku_m5701p6m',//substring(dburi.lastindexof("/") + 1),
   host: 'ds133348.mlab.com',//substring(dburi.indexOf("@") + 1, dburi.lastindexOf(":")),
   port: '33348'//substring(dburi.lastindexOf(":") + 1, dburi.lastindexOf("/"))
