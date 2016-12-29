@@ -4,22 +4,23 @@ var favicon = require('serve-favicon');
 var logger  = require('morgan');
 var cookieParser = require('cookie-parser');
 var bodyParser   = require('body-parser');
-
-var routes   = require('./routes/index');       //加载访问主页的路由
-var settings = require('./settings');
 var flash    = require('connect-flash');        //flash是在session中用于存储信息的特定区域
-var users    = require('./routes/users');
-
+var fs = require('fs');
 //会话信息存放需要的模块
 var mongoose = require('mongoose');
-var uri = "mongodb://heroku_m570lp6m:g8835um42r6bmnvgbdr495ms75@ds133348.mlab.com:33348/heroku_m570lp6m";
 var session    = require('express-session');
 var MongoStore = require('connect-mongo')(session);
 
-var fs = require('fs');
+var app = express(); //生成一个express实例的app
+
+var routes   = require('./routes/index');       //加载访问主页的路由
+var settings = require('./settings');
+var users    = require('./routes/users');
+
 var accessLog = fs.createWriteStream('access.log', {flags: 'a'});
 var errorLog = fs.createWriteStream('error.log', {flags: 'a'});
-var app = express(); //生成一个express实例的app
+
+var uri = require('./models/db');
 
 require('events').EventEmitter.prototype._maxListeners = 100;
 
@@ -35,22 +36,38 @@ app.use(logger('dev', {stream: accessLog}));                            //加载
 app.use(bodyParser.json());                          //加载解析json的中间件
 app.use(bodyParser.urlencoded({ extended: false })); //加载解析urlencode请求体的中间件
 app.use(cookieParser());                             //加载解析cookie的中间件
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'))); //设置public文件夹为存放静态文件的目录
 app.use(function(err, req, res, next) {
     var meta = '[' + new Date() + ']' +req.url +'\n';
     errorLog.write(meta, err.stack + '\n');
     next();
 });
-//设置public文件夹为存放静态文件的目录
+
+function SessionStore() {
+    if (app.get('env') === 'development') {
+        this.key = settings.db2;
+        this.store = new MongoStore({
+            db: settings.db2,
+            host: settings.host2,
+            port: settings.port2
+        });
+    }
+    else {//if(app.get('env') === "production") {
+        this.key = settings.db;
+        this.store = new MongoStore({ mongooseConnection: mongoose.connection });
+    }
+}
+var sessionstore = new SessionStore();
+
 
 //设置cookie，将会话信息存入mongodb
 //可通过req.session获取当前用户的会话对象，获取用户的相关信息
 mongoose.connect(uri);
 app.use(session({
     secret: settings.cookieSecret,
-    key: settings.db,        //cookie name
+    key: sessionstore.key,        //cookie name
     cookie: {maxAge: 1000 * 60 * 60 * 24 * 30}, //30天
-    store: new MongoStore({ mongooseConnection: mongoose.connection }),
+    store: sessionstore.store,
     /*store: new MongoStore({
         db: settings.db,
         host: settings.host,
